@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NammaCart — Your Neighbourhood Marketplace</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            bazaar: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              200: '#fed7aa',
+              500: '#f97316', // Vibrant local Indian saffron-orange
+              600: '#ea580c',
+              700: '#c2410c',
+              800: '#9a3412',
+              900: '#7c2d12',
+            },
+            leaf: {
+              500: '#10b981',
+              600: '#059669',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons & React 18 CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&display=swap');
+    
+    body {
+      font-family: 'Plus Jakarta Sans', 'Noto Sans Devanagari', 'Noto Sans Kannada', sans-serif;
+    }
+
+    /* Radar scan animation for hyperlocal discovery */
+    @keyframes radar-scan {
+      0% { transform: scale(0.3); opacity: 0.9; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    .radar-pulse {
+      animation: radar-scan 2.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+
+    .product-image-fallback::after {
+      content: attr(data-fallback);
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      padding: 1rem; text-align: center; color: #475569; font-weight: 700; font-size: 1rem; white-space: pre-line;
+      background: linear-gradient(135deg, #fff7ed, #ecfdf5);
+    }
+
+    /* AI scanner laser */
+    @keyframes laser-sweep {
+      0% { top: 0%; opacity: 0.8; }
+      50% { top: 95%; opacity: 1; }
+      100% { top: 0%; opacity: 0.8; }
+    }
+    .laser-line {
+      animation: laser-sweep 2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased selection:bg-orange-200">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // --- MULTILINGUAL TRANSLATION DICTIONARY ---
+    const I18N = {
+      en: {
+        appName: "NammaCart",
+        tagline: "Every local shop, one tap away",
+        switchBuyer: "Buyer Mode",
+        switchSeller: "Seller Portal",
+        searchPlaceholder: "Search Atta, Milk, Dolo, Biscuits...",
+        speakToSearch: "Voice Search",
+        openNow: "Open Now",
+        allShops: "All Neighbourhood Shops",
+        compareTitle: "Compare Nearby Shops",
+        addToCart: "Add to Cart",
+        cartTitle: "Your Neighbourhood Cart",
+        checkout: "Proceed to Checkout",
+        payViaUpi: "Pay via Instant UPI / QR",
+        orderPlaced: "Order Placed Successfully!",
+        sellerDashboard: "Seller Growth & Orders",
+        aiListingTitle: "AI Photo-to-Listing",
+        aiListingDesc: "Snap a photo of the product. Gemini Vision drafts title, price, category & stock in seconds.",
+        aiDrafting: "AI is analyzing image details...",
+        publishProduct: "Publish to My Storefront",
+        lowStock: "Low Stock Alert",
+        acceptOrder: "Accept Order",
+        orderReady: "Mark Ready for Pickup",
+        completeOrder: "Complete Order",
+        growthCoach: "AI Growth Coach Insights",
+        whatsappAlert: "Send WhatsApp Order Update",
+        distance: "away",
+        mins: "mins pickup"
+      },
+      hi: {
+        appName: "बाज़ार",
+        tagline: "हर आस-पड़ोस की दुकान, एक क्लिक पर",
+        switchBuyer: "ग्राहक व्यू",
+        switchSeller: "दुकानदार पोर्टल",
+        searchPlaceholder: "आटा, दूध, डोलो, बिस्कुट खोजें...",
+        speakToSearch: "बोलकर खोजें",
+        openNow: "अभी खुली है",
+        allShops: "आस-पास की दुकानें",
+        compareTitle: "नज़दीकी दुकानों के दाम की तुलना",
+        addToCart: "कार्ट में जोड़ें",
+        cartTitle: "आपकी बाज़ार कार्ट",
+        checkout: "ऑर्डर आगे बढ़ाएं",
+        payViaUpi: "UPI / QR से तुरंत भुगतान करें",
+        orderPlaced: "ऑर्डर सफलतापूर्वक दर्ज!",
+        sellerDashboard: "दुकानदार डैशबोर्ड व ऑर्डर",
+        aiListingTitle: "फ़ोटो से AI लिस्टिंग",
+        aiListingDesc: "सामान की फोटो खींचें, AI नाम, दाम और श्रेणी अपने आप भर देगा।",
+        aiDrafting: "AI फ़ोटो को स्कैन कर रहा है...",
+        publishProduct: "दुकान पर लाइव करें",
+        lowStock: "कम स्टॉक चेतावनी",
+        acceptOrder: "ऑर्डर स्वीकार करें",
+        orderReady: "पिकअप के लिए तैयार करें",
+        completeOrder: "ऑर्डर पूरा हुआ",
+        growthCoach: "AI व्यापार कोच सुझाव",
+        whatsappAlert: "व्हाट्सएप पर ऑर्डर अपडेट भेजें",
+        distance: "दूरी",
+        mins: "मिनट में पिकअप"
+      },
+      kn: {
+        appName: "ಬಜಾರ್",
+        tagline: "ನಿಮ್ಮ ಹತ್ತಿರದ ಪ್ರತಿ ಅಂಗಡಿ, ಒಂದೇ ಟ್ಯಾಪ್‌ನಲ್ಲಿ",
+        switchBuyer: "ಗ್ರಾಹಕರ ವೀಕ್ಷಣೆ",
+        switchSeller: "ಮಾರಾಟಗಾರರ ಪೋರ್ಟಲ್",
+        searchPlaceholder: "ಹಿಟ್ಟು, ಹಾಲು, ಔಷಧಗಳು, ಬಿಸ್ಕತ್ತು ಹುಡುಕಿ...",
+        speakToSearch: "ಧ್ವನಿ ಹುಡುಕಾಟ",
+        openNow: "ಈಗ ತೆರೆದಿದೆ",
+        allShops: "ಹತ್ತಿರದ ಅಂಗಡಿಗಳು",
+        compareTitle: "ಹತ್ತಿರದ ಅಂಗಡಿಗಳ ಬೆಲೆ ಹೋಲಿಕೆ",
+        addToCart: "ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಿ",
+        cartTitle: "ನಿಮ್ಮ ಬಜಾರ್ ಕಾರ್ಟ್",
+        checkout: "ಖರೀದಿಗೆ ಮುಂದುವರಿಯಿರಿ",
+        payViaUpi: "ತಕ್ಷಣದ UPI / QR ಮೂಲಕ ಪಾವತಿಸಿ",
+        orderPlaced: "ಆರ್ಡರ್ ಯಶಸ್ವಿಯಾಗಿದೆ!",
+        sellerDashboard: "ಮಾರಾಟಗಾರರ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+        aiListingTitle: "ಫೋಟೋದಿಂದ AI ಲಿಸ್ಟಿಂಗ್",
+        aiListingDesc: "ಉತ್ಪನ್ನದ ಫೋಟೋ ಕ್ಲಿಕ್ ಮಾಡಿ, AI ಶೀರ್ಷಿಕೆ ಮತ್ತು ಬೆಲೆಯನ್ನು ತಕ್ಷಣ ಭರ್ತಿ ಮಾಡುತ್ತದೆ.",
+        aiDrafting: "AI ಚಿತ್ರವನ್ನು ವಿಶ್ಲೇಷಿಸುತ್ತಿದೆ...",
+        publishProduct: "ಅಂಗಡಿಯಲ್ಲಿ ಲೈವ್ ಮಾಡಿ",
+        lowStock: "ಕಡಿಮೆ ಸ್ಟಾಕ್ ಎಚ್ಚರಿಕೆ",
+        acceptOrder: "ಆರ್ಡರ್ ಸ್ವೀಕರಿಸಿ",
+        orderReady: "ಪಿಕಪ್‌ಗೆ ಸಿದ್ಧವಾಗಿದೆ",
+        completeOrder: "ಆರ್ಡರ್ ಪೂರ್ಣಗೊಂಡಿದೆ",
+        growthCoach: "AI ವ್ಯಾಪಾರ ಸಲಹೆಗಳು",
+        whatsappAlert: "WhatsApp ಅಪ್‌ಡೇಟ್ ಕಳುಹಿಸಿ",
+        distance: "ದೂರ",
+        mins: "ನಿಮಿಷದಲ್ಲಿ ಪಿಕಪ್"
+      }
+    };
+
+    // --- SEED NEIGHBOURHOOD DATA ---
+    const INITIAL_SHOPS = [
+      {
+        id: "shop-1",
+        name: "Sharma Kirana & General Store",
+        category: "Groceries & Daily Essentials",
+        rating: 4.8,
+        reviewsCount: 142,
+        distanceMeters: 320,
+        address: "Cross Road 4, Sector 7",
+        phone: "+91 98450 12345",
+        isOpen: true,
+        pickupTimeMins: 10,
+        badge: "Trusted Local Kirana"
+      },
+      {
+        id: "shop-2",
+        name: "Green Leaf Organics & Fresh Mart",
+        category: "Vegetables, Dairy & Organic",
+        rating: 4.7,
+        reviewsCount: 98,
+        distanceMeters: 650,
+        address: "Opp. Community Park, Main Road",
+        phone: "+91 98450 54321",
+        isOpen: true,
+        pickupTimeMins: 15,
+        badge: "Farm Fresh"
+      },
+      {
+        id: "shop-3",
+        name: "Bangalore Iyengar Bakery",
+        category: "Bakery, Snacks & Dairy",
+        rating: 4.9,
+        reviewsCount: 310,
+        distanceMeters: 850,
+        address: "Near Water Tank, 2nd Stage",
+        phone: "+91 98450 99887",
+        isOpen: true,
+        pickupTimeMins: 12,
+        badge: "Bestseller Bakery"
+      },
+      {
+        id: "shop-4",
+        name: "Apollo Care & Meds",
+        category: "Pharmacy & Wellness",
+        rating: 4.9,
+        reviewsCount: 220,
+        distanceMeters: 1100,
+        address: "12th Cross, Market Junction",
+        phone: "+91 98450 11223",
+        isOpen: false,
+        pickupTimeMins: 20,
+        badge: "24x7 Emergency"
+      }
+    ];
+
+    const INITIAL_PRODUCTS = [
+      {
+        id: "prod-1",
+        shopId: "shop-1",
+        title: "Aashirvaad Superior Sharbati Atta 5kg",
+        category: "Atta & Flours",
+        price: 275,
+        mrp: 315,
+        stock: 14,
+        unit: "5 kg",
+        image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&auto=format&fit=crop&q=60",
+        description: "100% pure MP Sharbati wheat, whole grain rotis stay soft for hours.",
+        barcode: "890103038312"
+      },
+      {
+        id: "prod-2",
+        shopId: "shop-2",
+        title: "Aashirvaad Superior Sharbati Atta 5kg",
+        category: "Atta & Flours",
+        price: 290,
+        mrp: 315,
+        stock: 4, // Low stock demo!
+        unit: "5 kg",
+        image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&auto=format&fit=crop&q=60",
+        description: "Fresh stock from supplier, premium quality grain.",
+        barcode: "890103038312"
+      },
+      {
+        id: "prod-3",
+        shopId: "shop-1",
+        title: "Amul Pasteurized Butter 500g",
+        category: "Dairy & Milk",
+        price: 265,
+        mrp: 275,
+        stock: 3, // Low stock demo!
+        unit: "500 g",
+        image: "https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?w=400&auto=format&fit=crop&q=60",
+        description: "Classic Amul salted butter, wholesome nutrition from milk fat.",
+        barcode: "890126201005"
+      },
+      {
+        id: "prod-4",
+        shopId: "shop-3",
+        title: "Amul Pasteurized Butter 500g",
+        category: "Dairy & Milk",
+        price: 258,
+        mrp: 275,
+        stock: 22,
+        unit: "500 g",
+        image: "https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?w=400&auto=format&fit=crop&q=60",
+        description: "Chilled dairy stock, fresh from bakery refrigerator.",
+        barcode: "890126201005"
+      },
+      {
+        id: "prod-5",
+        shopId: "shop-1",
+        title: "Tata Tea Gold Leaf 500g",
+        category: "Beverages & Tea",
+        price: 310,
+        mrp: 350,
+        stock: 18,
+        unit: "500 g",
+        image: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400&auto=format&fit=crop&q=60",
+        description: "Fine CTC teas with 15% gently rolled long tea leaves for rich aroma.",
+        barcode: "890105200389"
+      },
+      {
+        id: "prod-6",
+        shopId: "shop-2",
+        title: "Tata Tea Gold Leaf 500g",
+        category: "Beverages & Tea",
+        price: 325,
+        mrp: 350,
+        stock: 9,
+        unit: "500 g",
+        image: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400&auto=format&fit=crop&q=60",
+        description: "Aromatic black tea for breakfast and evening tea time.",
+        barcode: "890105200389"
+      },
+      {
+        id: "prod-7",
+        shopId: "shop-3",
+        title: "Fresh Baked Rusk & Toast (Iyengar Special)",
+        category: "Bakery, Snacks & Dairy",
+        price: 65,
+        mrp: 75,
+        stock: 35,
+        unit: "300 g",
+        image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&auto=format&fit=crop&q=60",
+        description: "Cardamom flavored crispy toasts baked fresh every morning.",
+        barcode: "890882190112"
+      },
+      {
+        id: "prod-8",
+        shopId: "shop-1",
+        title: "Fortune Sunlite Refined Sunflower Oil 1L",
+        category: "Oils & Ghee",
+        price: 135,
+        mrp: 155,
+        stock: 12,
+        unit: "1 Litre",
+        image: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400&auto=format&fit=crop&q=60",
+        description: "Light and healthy cooking oil enriched with vitamins A & D.",
+        barcode: "890600728101"
+      }
+    ];
+
+
+
+    // Additional curated products (60 products total including the original 8).
+    // Photos are loaded from Unsplash; image errors get a product/category-specific fallback.
+    const EXTRA_PRODUCTS = [
+      { title: "India Gate Classic Basmati Rice 1kg", category: "Rice, Pulses & Grains", price: 125, mrp: 145, stock: 28, unit: "1 kg", image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80", description: "Long-grain basmati rice for everyday meals.", barcode: "890105800101" },
+      { title: "Whole Rajma Red Kidney Beans 500g", category: "Rice, Pulses & Grains", price: 78, mrp: 90, stock: 24, unit: "500 g", image: "https://images.unsplash.com/photo-1515543904379-3d757afe72e4?auto=format&fit=crop&w=600&q=80", description: "Red kidney beans for rajma curry.", barcode: "890105800102" },
+      { title: "Moong Dal Split 1kg", category: "Rice, Pulses & Grains", price: 118, mrp: 135, stock: 19, unit: "1 kg", image: "https://images.unsplash.com/photo-1515543904379-3d757afe72e4?auto=format&fit=crop&w=600&q=80", description: "Protein-rich split moong dal.", barcode: "890105800103" },
+      { title: "Tata Salt Iodized 1kg", category: "Spices & Condiments", price: 28, mrp: 30, stock: 40, unit: "1 kg", image: "https://images.unsplash.com/photo-1518110925495-5fe2fda0442c?auto=format&fit=crop&w=600&q=80", description: "Everyday iodized cooking salt.", barcode: "890105800104" },
+      { title: "Brown Sugar 500g", category: "Spices & Condiments", price: 48, mrp: 55, stock: 20, unit: "500 g", image: "https://images.unsplash.com/photo-1518110925495-5fe2fda0442c?auto=format&fit=crop&w=600&q=80", description: "Fine brown sugar for tea and baking.", barcode: "890105800105" },
+      { title: "Rolled Oats 500g", category: "Breakfast & Cereals", price: 95, mrp: 115, stock: 16, unit: "500 g", image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80", description: "Wholegrain oats for breakfast.", barcode: "890105800106" },
+      { title: "Fresh Red Apples 1kg", category: "Fresh Fruits & Vegetables", price: 160, mrp: 190, stock: 14, unit: "1 kg", image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=600&q=80", description: "Crisp red apples selected for freshness.", barcode: "890105800107" },
+      { title: "Fresh Bananas 6 pcs", category: "Fresh Fruits & Vegetables", price: 42, mrp: 50, stock: 30, unit: "6 pcs", image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=600&q=80", description: "Ripe bananas for a quick snack.", barcode: "890105800108" },
+      { title: "Fresh Carrots 500g", category: "Fresh Fruits & Vegetables", price: 35, mrp: 45, stock: 22, unit: "500 g", image: "https://images.unsplash.com/photo-1445282768818-728615cc910a?auto=format&fit=crop&w=600&q=80", description: "Fresh carrots for salads and cooking.", barcode: "890105800109" },
+      { title: "Sunflower Seeds 200g", category: "Dry Fruits & Seeds", price: 85, mrp: 99, stock: 12, unit: "200 g", image: "https://images.unsplash.com/photo-1509358271058-acd22cc93898?auto=format&fit=crop&w=600&q=80", description: "Crunchy sunflower seeds for snacking.", barcode: "890105800110" },
+      { title: "Filter Coffee Powder 200g", category: "Beverages & Tea", price: 115, mrp: 130, stock: 18, unit: "200 g", image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=600&q=80", description: "Aromatic ground coffee for filter brewing.", barcode: "890105800111" },
+      { title: "Chocolate Truffle Cake 500g", category: "Bakery & Cakes", price: 420, mrp: 480, stock: 8, unit: "500 g", image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=600&q=80", description: "Chocolate cake for celebrations.", barcode: "890105800112" },
+      { title: "Butter Croissant 2 pcs", category: "Bakery & Cakes", price: 85, mrp: 100, stock: 12, unit: "2 pcs", image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=600&q=80", description: "Flaky golden butter croissants.", barcode: "890105800113" },
+      { title: "Chocolate Chip Cookies 200g", category: "Bakery & Cookies", price: 95, mrp: 110, stock: 18, unit: "200 g", image: "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=600&q=80", description: "Cookies with chocolate chips.", barcode: "890105800114" },
+      { title: "Glazed Donuts 2 pcs", category: "Bakery & Snacks", price: 90, mrp: 110, stock: 10, unit: "2 pcs", image: "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=600&q=80", description: "Soft donuts with a sweet glaze.", barcode: "890105800115" },
+      { title: "Veg Grilled Sandwich 1 pc", category: "Bakery, Snacks & Dairy", price: 65, mrp: 75, stock: 10, unit: "1 pc", image: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=600&q=80", description: "Toasted sandwich with fresh vegetables.", barcode: "890105800116" },
+      { title: "Blueberry Muffins 2 pcs", category: "Bakery & Cakes", price: 110, mrp: 130, stock: 9, unit: "2 pcs", image: "https://images.unsplash.com/photo-1607958996333-41aef7caefaa?auto=format&fit=crop&w=600&q=80", description: "Soft muffins with blueberries.", barcode: "890105800117" },
+      { title: "Fresh Sourdough Loaf 400g", category: "Bakery & Bread", price: 95, mrp: 115, stock: 14, unit: "400 g", image: "https://images.unsplash.com/photo-1585478259715-876acc5be8eb?auto=format&fit=crop&w=600&q=80", description: "Crusty sourdough loaf baked fresh.", barcode: "890105800118" },
+      { title: "Paneer Puff 2 pcs", category: "Bakery & Snacks", price: 50, mrp: 60, stock: 16, unit: "2 pcs", image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80", description: "Flaky savoury paneer puffs.", barcode: "890105800119" },
+      { title: "Garlic Bread 250g", category: "Bakery & Bread", price: 75, mrp: 90, stock: 12, unit: "250 g", image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=600&q=80", description: "Garlic bread with herbs.", barcode: "890105800120" },
+      { title: "Strawberry Tart 2 pcs", category: "Bakery & Cakes", price: 120, mrp: 145, stock: 7, unit: "2 pcs", image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=600&q=80", description: "Fruit tarts topped with strawberries.", barcode: "890105800121" },
+      { title: "Classic Chocolate Brownies 4 pcs", category: "Bakery & Cakes", price: 150, mrp: 175, stock: 11, unit: "4 pcs", image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=600&q=80", description: "Rich chocolate brownies.", barcode: "890105800122" },
+      { title: "Wireless Bluetooth Headphones", category: "Electronics & Accessories", price: 1299, mrp: 1699, stock: 10, unit: "1 pc", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80", description: "Over-ear wireless headphones for music.", barcode: "890105800123" },
+      { title: "USB-C Fast Charging Cable 1m", category: "Electronics & Accessories", price: 199, mrp: 299, stock: 25, unit: "1 pc", image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80", description: "USB-C cable for compatible devices.", barcode: "890105800124" },
+      { title: "20W USB-C Wall Charger", category: "Electronics & Accessories", price: 499, mrp: 699, stock: 15, unit: "1 pc", image: "https://images.unsplash.com/photo-1609592806596-b43bada2f7b4?auto=format&fit=crop&w=600&q=80", description: "Compact USB-C wall charger.", barcode: "890105800125" },
+      { title: "Wireless Computer Mouse", category: "Electronics & Accessories", price: 549, mrp: 799, stock: 13, unit: "1 pc", image: "https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=600&q=80", description: "Wireless mouse for laptop or desktop.", barcode: "890105800126" },
+      { title: "Mechanical Keyboard", category: "Electronics & Accessories", price: 1899, mrp: 2399, stock: 7, unit: "1 pc", image: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=600&q=80", description: "Mechanical keyboard for work and gaming.", barcode: "890105800127" },
+      { title: "Portable Bluetooth Speaker", category: "Electronics & Accessories", price: 999, mrp: 1399, stock: 9, unit: "1 pc", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=600&q=80", description: "Portable speaker with wireless audio.", barcode: "890105800128" },
+      { title: "Android Smartphone", category: "Electronics & Accessories", price: 249, mrp: 349, stock: 20, unit: "1 pc", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80", description: "Smartphone for everyday calls, messaging and apps.", barcode: "890105800129" },
+      { title: "Digital Smart Watch", category: "Electronics & Accessories", price: 1599, mrp: 2199, stock: 8, unit: "1 pc", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80", description: "Smart watch with digital display.", barcode: "890105800130" },
+      { title: "Compact Digital Camera", category: "Electronics & Accessories", price: 5499, mrp: 6499, stock: 4, unit: "1 pc", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80", description: "Compact camera for everyday photography.", barcode: "890105800131" },
+      { title: "Laptop Computer 14 inch", category: "Electronics & Accessories", price: 699, mrp: 899, stock: 11, unit: "1 pc", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=600&q=80", description: "Portable laptop computer for work and study.", barcode: "890105800132" },
+      { title: "Handmade Blue Ceramic Mug", category: "Handicrafts & Gifts", price: 299, mrp: 399, stock: 10, unit: "1 pc", image: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=600&q=80", description: "Handmade ceramic mug with a blue finish.", barcode: "890105800133" },
+      { title: "Decorative Clay Vase", category: "Handicrafts & Gifts", price: 599, mrp: 799, stock: 6, unit: "1 pc", image: "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?auto=format&fit=crop&w=600&q=80", description: "Decorative vase for flowers or shelves.", barcode: "890105800134" },
+      { title: "Handwoven Jute Basket", category: "Handicrafts & Gifts", price: 349, mrp: 449, stock: 12, unit: "1 pc", image: "https://images.unsplash.com/photo-1590736969955-71cc94901144?auto=format&fit=crop&w=600&q=80", description: "Handwoven basket for storage and gifting.", barcode: "890105800135" },
+      { title: "Handmade Scented Candle", category: "Handicrafts & Gifts", price: 249, mrp: 329, stock: 15, unit: "1 pc", image: "https://images.unsplash.com/photo-1603006905003-be475563bc59?auto=format&fit=crop&w=600&q=80", description: "Scented candle in a decorative container.", barcode: "890105800136" },
+      { title: "Terracotta Planter Pot", category: "Handicrafts & Gifts", price: 199, mrp: 279, stock: 14, unit: "1 pc", image: "https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=600&q=80", description: "Terracotta-style planter for small plants.", barcode: "890105800137" },
+      { title: "Hand-Painted Ceramic Bowl", category: "Handicrafts & Gifts", price: 399, mrp: 549, stock: 8, unit: "1 pc", image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=600&q=80", description: "Decorative hand-finished ceramic bowl.", barcode: "890105800138" },
+      { title: "Wooden Photo Frame 5x7", category: "Handicrafts & Gifts", price: 299, mrp: 399, stock: 10, unit: "5 x 7 in", image: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=600&q=80", description: "Wooden photo frame for home d\u00e9cor.", barcode: "890105800139" },
+      { title: "Beaded Handmade Keychain", category: "Handicrafts & Gifts", price: 99, mrp: 149, stock: 25, unit: "1 pc", image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=600&q=80", description: "Small handmade accessory for keys or bags.", barcode: "890105800140" },
+      { title: "Macrame Wall Hanging", category: "Handicrafts & Gifts", price: 699, mrp: 899, stock: 5, unit: "1 pc", image: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=600&q=80", description: "Textured macrame wall decoration.", barcode: "890105800141" },
+      { title: "Festive Gift Hamper Basket", category: "Handicrafts & Gifts", price: 499, mrp: 649, stock: 7, unit: "1 pc", image: "https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=600&q=80", description: "Decorative gift basket for celebrations.", barcode: "890105800142" },
+      { title: "Minimal Table Lamp", category: "Home & Living", price: 899, mrp: 1199, stock: 7, unit: "1 pc", image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=600&q=80", description: "Minimal table lamp for a bedside or desk.", barcode: "890105800143" },
+      { title: "Cotton Cushion Cover", category: "Home & Living", price: 249, mrp: 349, stock: 18, unit: "16 x 16 in", image: "https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=600&q=80", description: "Soft cotton cushion cover for sofas.", barcode: "890105800144" },
+      { title: "Cotton Bath Towel", category: "Home & Living", price: 399, mrp: 499, stock: 16, unit: "1 pc", image: "https://images.unsplash.com/photo-1600369671236-e74521d4b6ad?auto=format&fit=crop&w=600&q=80", description: "Absorbent cotton bath towel.", barcode: "890105800145" },
+      { title: "Non-Stick Frying Pan", category: "Home & Kitchen", price: 799, mrp: 999, stock: 9, unit: "1 pc", image: "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=600&q=80", description: "Everyday non-stick frying pan.", barcode: "890105800146" },
+      { title: "Indoor Green Plant", category: "Home & Living", price: 299, mrp: 399, stock: 13, unit: "1 pot", image: "https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=600&q=80", description: "Small indoor plant for a desk or shelf.", barcode: "890105800147" },
+      { title: "Woven Living Room Rug", category: "Home & Living", price: 1299, mrp: 1699, stock: 4, unit: "1 pc", image: "https://images.unsplash.com/photo-1600166898405-da9535204843?auto=format&fit=crop&w=600&q=80", description: "Woven rug for a living room or bedroom.", barcode: "890105800148" },
+      { title: "Round Wall Clock", category: "Home & Living", price: 599, mrp: 799, stock: 8, unit: "1 pc", image: "https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=600&q=80", description: "Simple wall clock for home or office.", barcode: "890105800149" },
+      { title: "Reusable Water Bottle 1L", category: "Home & Kitchen", price: 349, mrp: 449, stock: 20, unit: "1 L", image: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=600&q=80", description: "Reusable bottle for daily hydration.", barcode: "890105800150" },
+      { title: "Glass Food Storage Jars Set", category: "Home & Kitchen", price: 499, mrp: 649, stock: 11, unit: "3 pcs", image: "https://images.unsplash.com/photo-1603199506016-b9a594b593c0?auto=format&fit=crop&w=600&q=80", description: "Glass jars for pantry storage.", barcode: "890105800151" },
+      { title: "Ceramic Dinner Plate Set", category: "Home & Kitchen", price: 899, mrp: 1199, stock: 6, unit: "4 pcs", image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=600&q=80", description: "Ceramic plates for everyday dining.", barcode: "890105800152" }
+    ];
+
+    const CATALOG_PRODUCTS = [
+      ...INITIAL_PRODUCTS,
+      ...EXTRA_PRODUCTS.map((product, index) => ({
+        ...product,
+        id: `extra-${index + 1}`,
+        shopId: `shop-${(index % 4) + 1}`
+      }))
+    ];
+
+    // Sound chime helper using Web Audio API
+    function playOrderChime() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.12); // A5
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.6);
+      } catch (e) {
+        console.warn("Audio not permitted yet:", e);
+      }
+    }
+
+    function getProductFallback(product) {
+      const text = `${product?.title || ''} ${product?.category || ''}`.toLowerCase();
+      if (/rajma|bean|dal|lentil|pulse/.test(text)) return '🫘';
+      if (/rice|atta|flour|oat|grain|rava/.test(text)) return '🌾';
+      if (/salt|sugar|spice/.test(text)) return '🧂';
+      if (/apple|banana|fruit|carrot|vegetable|plant/.test(text)) return '🥕';
+      if (/milk|butter|cheese|dairy/.test(text)) return '🥛';
+      if (/tea|coffee|beverage/.test(text)) return '☕';
+      if (/cake|cookie|croissant|muffin|bread|loaf|sandwich|bakery|brownie|donut|puff|tart/.test(text)) return '🥐';
+      if (/headphone|earbud|speaker|audio/.test(text)) return '🎧';
+      if (/charger|cable|power bank|keyboard|mouse|camera|phone|laptop|watch|electronic|sleeve/.test(text)) return '🔌';
+      if (/vase|pottery|ceramic|basket|candle|handmade|macrame|keychain|frame|gift|craft/.test(text)) return '🪴';
+      if (/lamp|cushion|towel|pan|rug|clock|bottle|jar|plate|home|kitchen/.test(text)) return '🏡';
+      return '🛍️';
+    }
+
+    // Show REAL product photographs from the catalogue URLs. Seller-uploaded photos
+    // (data URLs) are also shown as-is. A category icon is used only if a photo fails.
+    function getProductVisual(product) {
+      if (product?.image && (product.image.startsWith('data:image/') || /^https?:\/\//i.test(product.image))) {
+        return product.image;
+      }
+      const emoji = getProductFallback(product);
+      const title = String(product?.title || 'Local product').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[ch]));
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff7ed"/><stop offset="100%" stop-color="#ecfdf5"/></linearGradient></defs><rect width="600" height="400" rx="28" fill="url(#bg)"/><circle cx="300" cy="145" r="88" fill="#ffffff" fill-opacity=".8"/><text x="300" y="176" text-anchor="middle" font-size="104">${emoji}</text><text x="300" y="285" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="700" fill="#334155">${title.slice(0,42)}</text><text x="300" y="326" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="#64748b">Photo unavailable</text></svg>`;
+      return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+    }
+
+    // --- MAIN BAZAAR APPLICATION COMPONENT ---
+    function BazaarApp() {
+      // Core View State: 'buyer' | 'seller'
+      const [viewMode, setViewMode] = useState('buyer');
+      const [isLoggedIn, setIsLoggedIn] = useState(false);
+      const [loginError, setLoginError] = useState('');
+      const [profile, setProfile] = useState({ name: '', phone: '', email: '', role: 'buyer', address: '' });
+      const [language, setLanguage] = useState('en');
+      const t = I18N[language] || I18N.en;
+
+      // Data States
+      const [shops, setShops] = useState(() => {
+        try { const saved = localStorage.getItem('nammacart_shops'); return saved ? JSON.parse(saved) : INITIAL_SHOPS; }
+        catch { return INITIAL_SHOPS; }
+      });
+      const [products, setProducts] = useState(() => {
+        try { const saved = localStorage.getItem('nammacart_products_v3'); return saved ? JSON.parse(saved) : CATALOG_PRODUCTS; }
+        catch { return CATALOG_PRODUCTS; }
+      });
+      const [orders, setOrders] = useState(() => {
+        try {
+          const saved = localStorage.getItem('nammacart_orders');
+          if (saved) return JSON.parse(saved);
+        } catch (e) { /* use demo order if storage is unavailable */ }
+        return [{
+          id: "ORD-9481", buyerName: "Demo Buyer", buyerPhone: "0000000000", shopId: "shop-1",
+          items: [{ title: "Tata Tea Gold Leaf 500g", qty: 1, price: 310 }], totalAmount: 310,
+          paymentMode: "Demo order", status: "ACCEPTED", createdAt: "Sample order"
+        }];
+      });
+      const [wishlistIds, setWishlistIds] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('nammacart_wishlist') || '[]'); }
+        catch { return []; }
+      });
+      const [shopDraft, setShopDraft] = useState({ name: '', phone: '', address: '', openingHours: '9:00 AM – 9:00 PM', description: '', isOpen: true });
+      const [expenseDraft, setExpenseDraft] = useState({ amount: '', category: 'Stock Purchase', note: '', date: new Date().toISOString().slice(0, 10) });
+      const [expenses, setExpenses] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('nammacart_expenses_v1') || '[]'); }
+        catch { return []; }
+      });
+
+      // Active Seller context (Sharma Kirana is default managed seller)
+      const activeSellerShopId = "shop-1";
+      const activeShop = shops.find(s => s.id === activeSellerShopId) || shops[0];
+      useEffect(() => {
+        if (activeShop) setShopDraft({ name: activeShop.name || '', phone: activeShop.phone || '', address: activeShop.address || '', openingHours: activeShop.openingHours || '9:00 AM – 9:00 PM', description: activeShop.description || '', isOpen: activeShop.isOpen !== false });
+      }, [activeShop.id]);
+
+      // Buyer Filters & Search
+      const [searchQuery, setSearchQuery] = useState("");
+      const [selectedCategory, setSelectedCategory] = useState("All");
+      const [onlyOpenShops, setOnlyOpenShops] = useState(false);
+      const [isListening, setIsListening] = useState(false);
+
+      // Comparison Modal State
+      const [comparingProduct, setComparingProduct] = useState(null);
+
+      // Cart State
+      const [cart, setCart] = useState([]);
+      const [isCartOpen, setIsCartOpen] = useState(false);
+      const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+      const [deliveryOption, setDeliveryOption] = useState("pickup"); // 'pickup' | 'delivery'
+      const [liveLocation, setLiveLocation] = useState(null);
+      const [locationTracking, setLocationTracking] = useState(false);
+      const [locationError, setLocationError] = useState('');
+      const locationWatchRef = useRef(null);
+
+      // AI Listing Modal State (Seller)
+      const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+      const [aiScanning, setAiScanning] = useState(false);
+      const [aiDraft, setAiDraft] = useState(null);
+      const [aiSelectedPreset, setAiSelectedPreset] = useState(null);
+      const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+      const [newProductImage, setNewProductImage] = useState('');
+      const [newProductDraft, setNewProductDraft] = useState({ title: '', category: 'Groceries & Daily Essentials', price: '', mrp: '', stock: '10', unit: '1 pc', description: '' });
+
+      // Toast Notification
+      const [toastMessage, setToastMessage] = useState(null);
+      const [backendStatus, setBackendStatus] = useState('checking'); // 'connected' | 'standalone'
+
+      const showToast = (msg) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(null), 3500);
+      };
+
+      const startLiveLocation = () => {
+        if (!navigator.geolocation) {
+          setLocationError('This browser does not support location sharing.');
+          return;
+        }
+        if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
+        setLocationError('');
+        setLocationTracking(true);
+        const watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            setLiveLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: Math.round(position.coords.accuracy), updatedAt: new Date().toLocaleTimeString() });
+            setLocationError('');
+          },
+          (error) => {
+            setLocationTracking(false);
+            const message = error.code === 1 ? 'Location permission was denied. Allow location access in your browser to use this feature.' : error.code === 2 ? 'Your current location is unavailable. Try again outdoors or check device location settings.' : 'Location request timed out. Please try again.';
+            setLocationError(message);
+            if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
+            locationWatchRef.current = null;
+          },
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+        );
+        locationWatchRef.current = watchId;
+        showToast('Location sharing started. Your browser will keep updating while this page stays open.');
+      };
+
+      const stopLiveLocation = () => {
+        if (locationWatchRef.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(locationWatchRef.current);
+        locationWatchRef.current = null;
+        setLocationTracking(false);
+        showToast('Location tracking stopped.');
+      };
+
+      useEffect(() => () => {
+        if (locationWatchRef.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(locationWatchRef.current);
+      }, []);
+
+      const handleLogout = () => {
+        if (locationWatchRef.current !== null && navigator.geolocation) navigator.geolocation.clearWatch(locationWatchRef.current);
+        locationWatchRef.current = null;
+        setLocationTracking(false);
+        setLiveLocation(null);
+        setLocationError('');
+        setIsLoggedIn(false);
+        setLoginError('');
+        setProfile({ name: '', phone: '', email: '', role: 'buyer', address: '' });
+        setViewMode('buyer');
+        setCart([]);
+        setIsCartOpen(false);
+        setIsCheckoutModalOpen(false);
+        showToast('You have been logged out.');
+      };
+
+      // Auto-detect and sync with Node.js backend if running
+      useEffect(() => {
+        fetch('http://localhost:5000/api/health')
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 'online') {
+              setBackendStatus('connected');
+              showToast("⚡ Connected to NammaCart Express + Socket.io Backend!");
+            } else {
+              setBackendStatus('standalone');
+            }
+          })
+          .catch(() => setBackendStatus('standalone'));
+      }, []);
+
+      // Keep demo catalog, order status and wishlist after a browser refresh.
+      useEffect(() => { try { localStorage.setItem('nammacart_products_v3', JSON.stringify(products)); } catch (e) {} }, [products]);
+      useEffect(() => { try { localStorage.setItem('nammacart_shops', JSON.stringify(shops)); } catch (e) {} }, [shops]);
+      useEffect(() => { try { localStorage.setItem('nammacart_expenses_v1', JSON.stringify(expenses)); } catch (e) {} }, [expenses]);
+      useEffect(() => { try { localStorage.setItem('nammacart_orders', JSON.stringify(orders)); } catch (e) {} }, [orders]);
+      useEffect(() => { try { localStorage.setItem('nammacart_wishlist', JSON.stringify(wishlistIds)); } catch (e) {} }, [wishlistIds]);
+
+      const toggleWishlist = (productId) => {
+        setWishlistIds(prev => prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]);
+        showToast(wishlistIds.includes(productId) ? 'Removed from wishlist.' : 'Added to wishlist.');
+      };
+
+      // Voice recognition setup
+      const handleVoiceSearch = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          // Fallback simulation for live demo
+          const samplePhrases = ["Tata Tea", "Atta", "Amul Butter", "Milk"];
+          const picked = samplePhrases[Math.floor(Math.random() * samplePhrases.length)];
+          setSearchQuery(picked);
+          showToast(`🎤 Voice recognized: "${picked}"`);
+          return;
+        }
+
+        try {
+          const recognition = new SpeechRecognition();
+          recognition.lang = language === 'hi' ? 'hi-IN' : language === 'kn' ? 'kn-IN' : 'en-IN';
+          recognition.interimResults = false;
+          setIsListening(true);
+
+          recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            setSearchQuery(transcript);
+            setIsListening(false);
+            showToast(`🎤 Heard: "${transcript}"`);
+          };
+
+          recognition.onerror = () => {
+            setIsListening(false);
+            // Graceful demo fallback
+            setSearchQuery("Amul Butter");
+            showToast("🎤 Fallback demo speech: 'Amul Butter'");
+          };
+
+          recognition.onend = () => setIsListening(false);
+          recognition.start();
+        } catch (err) {
+          setIsListening(false);
+          setSearchQuery("Aashirvaad Atta");
+          showToast("🎤 Voice Search triggered: 'Aashirvaad Atta'");
+        }
+      };
+
+      // Cart actions
+      const addToCart = (product, shop) => {
+        if (cart.length > 0 && cart.some(item => item.shop.id !== shop.id)) {
+          showToast('For this demo, please order from one shop at a time. Checkout your current shop cart first.');
+          return;
+        }
+        if (!product || product.stock <= 0) {
+          showToast('Sorry, this product is out of stock.');
+          return;
+        }
+        setCart(prev => {
+          const existing = prev.find(item => item.product.id === product.id);
+          if (existing) {
+            if (existing.qty >= product.stock) {
+              showToast(`Only ${product.stock} available for ${product.title}.`);
+              return prev;
+            }
+            return prev.map(item => item.product.id === product.id ? { ...item, qty: item.qty + 1 } : item);
+          }
+          return [...prev, { product, shop, qty: 1 }];
+        });
+        showToast(`🛒 Added ${product.title} to cart!`);
+      };
+
+      const updateCartQty = (productId, delta) => {
+        const currentItem = cart.find(item => item.product.id === productId);
+        const currentProduct = products.find(product => product.id === productId);
+        if (delta > 0 && currentItem && currentProduct && currentItem.qty >= currentProduct.stock) {
+          showToast(`Only ${currentProduct.stock} available for ${currentProduct.title}.`);
+          return;
+        }
+        setCart(prev => prev.map(item => {
+          if (item.product.id === productId) {
+            const newQty = item.qty + delta;
+            return newQty > 0 ? { ...item, qty: newQty } : null;
+          }
+          return item;
+        }).filter(Boolean));
+      };
+
+      const cartTotal = useMemo(() => {
+        return cart.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
+      }, [cart]);
+
+      // Demo payment confirmation, order creation, and WhatsApp click-to-chat.
+      // Real payments and automatic WhatsApp delivery require server-side integrations.
+      const handleExecuteUpiOrder = () => {
+        if (cart.length === 0) {
+          showToast('Your cart is empty.');
+          return;
+        }
+        if (cart.some(item => item.qty > (products.find(p => p.id === item.product.id)?.stock ?? 0))) {
+          showToast('Some items no longer have enough stock. Please update your cart.');
+          return;
+        }
+        if (deliveryOption === 'delivery' && !profile.address.trim()) {
+          showToast('Please add a delivery address in your profile.');
+          return;
+        }
+        const confirmed = window.confirm(`DEMO CHECKOUT ONLY\n\nConfirm the demo payment of ₹${cartTotal}? No real money will be charged.`);
+        if (!confirmed) return;
+
+        const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+        const primaryShopId = cart[0].shop.id;
+        const orderShop = shops.find(s => s.id === primaryShopId) || cart[0].shop;
+        const mapUrl = deliveryOption === 'delivery' && liveLocation ? `https://www.google.com/maps?q=${liveLocation.latitude},${liveLocation.longitude}` : '';
+        const newOrder = {
+          id: newOrderId,
+          buyerName: profile.name,
+          buyerPhone: profile.phone,
+          buyerEmail: profile.email,
+          deliveryAddress: deliveryOption === "delivery" ? profile.address : "Store pickup",
+          customerLocation: deliveryOption === 'delivery' && liveLocation ? { latitude: liveLocation.latitude, longitude: liveLocation.longitude, accuracy: liveLocation.accuracy, mapUrl } : null,
+          shopId: primaryShopId,
+          items: cart.map(item => ({ title: item.product.title, qty: item.qty, price: item.product.price })),
+          totalAmount: cartTotal,
+          paymentMode: "Demo payment confirmed (not real)",
+          paymentStatus: "DEMO_CONFIRMED_NOT_REAL",
+          status: "PENDING",
+          createdAt: new Date().toLocaleString()
+        };
+
+        setProducts(prev => prev.map(p => {
+          const orderedItem = cart.find(c => c.product.id === p.id);
+          return orderedItem ? { ...p, stock: Math.max(0, p.stock - orderedItem.qty) } : p;
+        }));
+        setOrders(prev => [newOrder, ...prev]);
+        setCart([]);
+        setIsCheckoutModalOpen(false);
+        setIsCartOpen(false);
+
+        if (window.confetti) window.confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+        playOrderChime();
+        showToast(`Order ${newOrderId} created in demo mode. Opening WhatsApp message…`);
+
+        const itemsText = newOrder.items.map(item => `${item.title} x ${item.qty} — ₹${item.price * item.qty}`).join('\n');
+        const message = `Hello ${orderShop.name},\nA new NammaCart demo order has been placed.\nOrder: ${newOrderId}\nBuyer: ${profile.name} (${profile.phone})\nItems:\n${itemsText}\nTotal: ₹${newOrder.totalAmount}\nPayment: Demo confirmation only — no real payment was processed.\nFulfilment: ${deliveryOption === 'delivery' ? `Delivery to ${profile.address}` : 'Store pickup'}${mapUrl ? `\nBuyer location map: ${mapUrl}` : ''}\nPlease confirm availability and order status.`;
+        const sellerPhone = String(orderShop.phone || '').replace(/\D/g, '');
+        const whatsappUrl = sellerPhone
+          ? `https://wa.me/${sellerPhone}?text=${encodeURIComponent(message)}`
+          : `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      };
+
+      // Seller Order Actions
+      const handleSellerUpdateStatus = (orderId, nextStatus) => {
+        setOrders(prev => prev.map(ord => ord.id === orderId ? { ...ord, status: nextStatus } : ord));
+        playOrderChime();
+        showToast(`Order ${orderId} moved to: ${nextStatus}`);
+      };
+
+      // Inline Stock Modifier in Seller Portal
+      const handleUpdateStock = (productId, delta) => {
+        setProducts(prev => prev.map(p => {
+          if (p.id === productId) {
+            const nextStock = Math.max(0, p.stock + delta);
+            return { ...p, stock: nextStock };
+          }
+          return p;
+        }));
+      };
+
+      const handleProductPhotoUpload = (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { showToast('Please choose an image file.'); return; }
+        if (file.size > 8 * 1024 * 1024) { showToast('Please choose an image smaller than 8 MB.'); return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const source = new Image();
+          source.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxSide = 700;
+            const scale = Math.min(1, maxSide / Math.max(source.width, source.height));
+            canvas.width = Math.max(1, Math.round(source.width * scale));
+            canvas.height = Math.max(1, Math.round(source.height * scale));
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+            setNewProductImage(canvas.toDataURL('image/jpeg', 0.76));
+          };
+          source.onerror = () => showToast('Could not read that image. Please try another file.');
+          source.src = reader.result;
+        };
+        reader.onerror = () => showToast('Could not load the selected image.');
+        reader.readAsDataURL(file);
+      };
+
+      const handlePublishManualProduct = () => {
+        const title = newProductDraft.title.trim();
+        const price = Number(newProductDraft.price);
+        const mrp = Number(newProductDraft.mrp || newProductDraft.price);
+        const stock = Number(newProductDraft.stock);
+        if (title.length < 2) { showToast('Enter a valid product name.'); return; }
+        if (!Number.isFinite(price) || price <= 0) { showToast('Enter a valid selling price.'); return; }
+        if (!Number.isFinite(mrp) || mrp < price) { showToast('MRP must be equal to or greater than the selling price.'); return; }
+        if (!Number.isInteger(stock) || stock < 0) { showToast('Stock must be a whole number, zero or more.'); return; }
+        if (!newProductImage) { showToast('Please upload a product photo.'); return; }
+        const product = {
+          id: `seller-${Date.now()}`, shopId: activeSellerShopId, title, category: newProductDraft.category,
+          price, mrp, stock, unit: newProductDraft.unit.trim() || '1 pc', image: newProductImage,
+          description: newProductDraft.description.trim() || `${title} available from ${activeShop.name}.`,
+          barcode: `NC${Date.now()}`
+        };
+        setProducts(prev => [product, ...prev]);
+        setSelectedCategory('All');
+        setSearchQuery('');
+        setIsAddProductOpen(false);
+        setNewProductDraft({ title: '', category: 'Groceries & Daily Essentials', price: '', mrp: '', stock: '10', unit: '1 pc', description: '' });
+        setNewProductImage('');
+        showToast(`Product added: ${title}`);
+      };
+
+      // AI Photo Analysis Trigger (Simulated Gemini Multimodal Vision)
+      const triggerAiPhotoScanning = (presetName) => {
+        setAiSelectedPreset(presetName);
+        setAiScanning(true);
+        setAiDraft(null);
+
+        setTimeout(() => {
+          setAiScanning(false);
+          if (presetName === 'fortune_oil') {
+            setAiDraft({
+              title: "Fortune Sunlite Refined Sunflower Oil 1L",
+              category: "Oils & Ghee",
+              price: 135,
+              mrp: 155,
+              stock: 20,
+              unit: "1 Litre",
+              image: "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400&auto=format&fit=crop&q=60",
+              description: "High oleic refined sunflower cooking oil with Vitamin A & D fortifiers.",
+              confidence: "98.4% Gemini Vision Match"
+            });
+          } else if (presetName === 'tata_salt') {
+            setAiDraft({
+              title: "Tata Salt Vacuum Evaporated Iodized 1kg",
+              category: "Spices & Condiments",
+              price: 28,
+              mrp: 30,
+              stock: 35,
+              unit: "1 kg",
+              image: "https://images.unsplash.com/photo-1518110925495-5fe2fda0442c?w=400&auto=format&fit=crop&q=60",
+              description: "Desh ka Namak. Pure vacuum evaporated iodized salt for daily cooking.",
+              confidence: "99.1% Gemini Vision Match"
+            });
+          } else {
+            setAiDraft({
+              title: "Haldiram's Bhujia Sev 400g Crispy Snack",
+              category: "Bakery, Snacks & Dairy",
+              price: 110,
+              mrp: 125,
+              stock: 18,
+              unit: "400 g",
+              image: "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=400&auto=format&fit=crop&q=60",
+              description: "Traditional spicy Rajasthani moth bean and gram flour crunchy noodles.",
+              confidence: "97.8% Gemini Vision Match"
+            });
+          }
+        }, 1500);
+      };
+
+      // Add AI drafted product into active seller shop
+      const handlePublishAiProduct = () => {
+        if (!aiDraft) return;
+        const newProduct = {
+          id: `prod-${Date.now()}`,
+          shopId: activeSellerShopId,
+          ...aiDraft
+        };
+        setProducts(prev => [newProduct, ...prev]);
+        setIsAiModalOpen(false);
+        setAiDraft(null);
+        setAiSelectedPreset(null);
+        showToast(`✨ ${newProduct.title} is now LIVE on your storefront!`);
+      };
+
+      // Filtered Buyer Products
+      const filteredProducts = useMemo(() => {
+        return products.filter(p => {
+          const shop = shops.find(s => s.id === p.shopId);
+          if (onlyOpenShops && !shop?.isOpen) return false;
+          if (selectedCategory !== "All" && p.category !== selectedCategory) return false;
+          if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            return p.title.toLowerCase().includes(q) || 
+                   p.category.toLowerCase().includes(q) || 
+                   shop?.name.toLowerCase().includes(q);
+          }
+          return true;
+        });
+      }, [products, shops, selectedCategory, searchQuery, onlyOpenShops]);
+
+      // Comparison Candidates Finder
+      const getComparisonShops = (product) => {
+        if (!product) return [];
+        // Match other items with exact same or similar title
+        const matches = products.filter(p => 
+          p.title.toLowerCase() === product.title.toLowerCase() ||
+          p.barcode === product.barcode
+        );
+        return matches.map(m => {
+          const shop = shops.find(s => s.id === m.shopId);
+          return {
+            product: m,
+            shop: shop
+          };
+        }).sort((a, b) => a.product.price - b.product.price);
+      };
+
+      // Quick 3-Min Demo Script Navigator
+      const runDemoStep = (stepNumber) => {
+        if (stepNumber === 1) {
+          setViewMode('seller');
+          setIsAiModalOpen(true);
+          triggerAiPhotoScanning('tata_salt');
+          showToast("Demo Step 1: Snap photo ➔ AI auto-drafts listing");
+        } else if (stepNumber === 2) {
+          setViewMode('buyer');
+          setSearchQuery("Aashirvaad Atta");
+          const sampleProd = products.find(p => p.title.includes("Aashirvaad"));
+          if (sampleProd) setComparingProduct(sampleProd);
+          showToast("Demo Step 2: Voice Search & Compare Nearby Shops");
+        } else if (stepNumber === 3) {
+          setViewMode('buyer');
+          const sampleProd = products[0];
+          const sampleShop = shops[0];
+          setCart([{ product: sampleProd, shop: sampleShop, qty: 1 }]);
+          setIsCheckoutModalOpen(true);
+          showToast("Demo Step 3: 1-Tap UPI Payment Checkout");
+        } else if (stepNumber === 4) {
+          setViewMode('seller');
+          setIsCheckoutModalOpen(false);
+          setIsCartOpen(false);
+          showToast("Demo Step 4: Seller Live Order Accept & AI Growth Coach");
+        }
+      };
+
+      if (!isLoggedIn) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-emerald-50 flex items-center justify-center p-4">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const name = profile.name.trim();
+              const phone = profile.phone.replace(/\D/g, '');
+              const email = profile.email.trim();
+              if (name.split(/\s+/).length < 2) { setLoginError('Enter your first and last name.'); return; }
+              if (!/^[6-9]\d{9}$/.test(phone)) { setLoginError('Enter a valid 10-digit Indian mobile number.'); return; }
+              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setLoginError('Enter a valid email address.'); return; }
+              if (profile.role === 'buyer' && profile.address.trim().split(/\s+/).filter(Boolean).length < 3) { setLoginError('For buyers, enter a complete address (at least 3 words).'); return; }
+              setLoginError(''); setViewMode(profile.role); setIsLoggedIn(true);
+            }} className="w-full max-w-lg bg-white rounded-3xl shadow-xl border border-orange-100 p-6 sm:p-8 space-y-4">
+              <div className="text-center mb-6">
+                <div className="mx-auto w-14 h-14 rounded-2xl bg-orange-600 text-white flex items-center justify-center text-3xl">🛍️</div>
+                <h1 className="text-3xl font-extrabold text-slate-900 mt-3">NammaCart</h1>
+                <p className="text-sm text-slate-500 mt-1">Your Neighbourhood, Just a Cart Away!</p>
+                <p className="text-slate-700 font-semibold mt-5">Welcome! Create your demo profile</p>
+              </div>
+              <div><label className="block text-sm font-bold mb-1" htmlFor="login-name">Full name</label><input id="login-name" required autoComplete="name" value={profile.name} onChange={e => setProfile({...profile, name:e.target.value})} className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-orange-500" placeholder="Enter your full name" /></div>
+              <div><label className="block text-sm font-bold mb-1" htmlFor="login-phone">Mobile number</label><input id="login-phone" required inputMode="numeric" maxLength={10} autoComplete="tel-national" value={profile.phone} onChange={e => setProfile({...profile, phone:e.target.value.replace(/\D/g,'').slice(0,10)})} className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-orange-500" placeholder="10-digit mobile number" /></div>
+              <div><label className="block text-sm font-bold mb-1" htmlFor="login-email">Email address</label><input id="login-email" required type="email" autoComplete="email" value={profile.email} onChange={e => setProfile({...profile, email:e.target.value})} className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-orange-500" placeholder="you@example.com" /></div>
+              <div><label className="block text-sm font-bold mb-1" htmlFor="login-role">Select role</label><select id="login-role" value={profile.role} onChange={e => setProfile({...profile, role:e.target.value})} className="w-full border border-slate-300 rounded-xl px-4 py-3 bg-white"><option value="buyer">Buyer (Customer)</option><option value="seller">Seller (Shopkeeper)</option></select></div>
+              {profile.role === 'buyer' && <div><label className="block text-sm font-bold mb-1" htmlFor="login-address">Delivery address / village name</label><textarea id="login-address" required rows="2" autoComplete="street-address" value={profile.address} onChange={e => setProfile({...profile, address:e.target.value})} className="w-full border border-slate-300 rounded-xl px-4 py-3 outline-orange-500" placeholder="House number, street, village or locality" /></div>}
+              {loginError && <p role="alert" className="text-sm text-red-600 font-semibold">{loginError}</p>}
+              <button type="submit" className="w-full bg-orange-600 hover:bg-orange-700 text-white font-extrabold rounded-xl py-3 transition">Continue to NammaCart →</button>
+              <p className="text-xs text-center text-slate-400">Demo profile only. This page does not create a secure account or store your details on a server.</p>
+            </form>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col bg-slate-100 text-slate-800">
+          
+          {/* --- TOP 3-MINUTE HACKATHON LIVE DEMO BAR --- */}
+          <header className="bg-slate-900 text-white text-xs px-3 py-2 flex flex-wrap items-center justify-between border-b border-slate-800 sticky top-0 z-50">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="font-bold tracking-wide text-orange-400 uppercase">NammaCart Demo Navigator</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${backendStatus === 'connected' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'}`}>
+                {backendStatus === 'connected' ? '🟢 Backend API Live' : '🟡 Standalone Demo'}
+              </span>
+              <span className="hidden sm:inline text-slate-400">| 3-Minute Live Hackathon Pitch Flow:</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button 
+                onClick={() => runDemoStep(1)} 
+                className="bg-slate-800 hover:bg-orange-600 px-2.5 py-1 rounded font-medium text-slate-200 transition">
+                1. AI Photo Listing
+              </button>
+              <button 
+                onClick={() => runDemoStep(2)} 
+                className="bg-slate-800 hover:bg-orange-600 px-2.5 py-1 rounded font-medium text-slate-200 transition">
+                2. Compare Nearby
+              </button>
+              <button 
+                onClick={() => runDemoStep(3)} 
+                className="bg-slate-800 hover:bg-orange-600 px-2.5 py-1 rounded font-medium text-slate-200 transition">
+                3. UPI Checkout
+              </button>
+              <button 
+                onClick={() => runDemoStep(4)} 
+                className="bg-slate-800 hover:bg-orange-600 px-2.5 py-1 rounded font-medium text-slate-200 transition">
+                4. Seller Order & AI Coach
+              </button>
+            </div>
+          </header>
+
+          {/* --- MAIN NAVIGATION BAR --- */}
+          <nav className="bg-white border-b border-slate-200 px-4 py-3 sticky top-9 z-40 shadow-sm">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+              
+              {/* Brand Logo & Location */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20 font-extrabold text-xl">
+                  N
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-xl tracking-tight text-slate-900">{t.appName}</span>
+                    <span className="bg-orange-100 text-orange-700 font-bold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Hyperlocal
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-500 flex items-center gap-1">
+                    <span className="text-emerald-600 font-semibold">📍 Koramangala, Sector 4</span>
+                    <span>• Bengaluru</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Center Language Switcher */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-semibold">
+                <button 
+                  onClick={() => setLanguage('en')} 
+                  className={`px-2.5 py-1 rounded-md transition ${language === 'en' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+                  English
+                </button>
+                <button 
+                  onClick={() => setLanguage('hi')} 
+                  className={`px-2.5 py-1 rounded-md transition ${language === 'hi' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+                  हिन्दी
+                </button>
+                <button 
+                  onClick={() => setLanguage('kn')} 
+                  className={`px-2.5 py-1 rounded-md transition ${language === 'kn' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+                  ಕನ್ನಡ
+                </button>
+              </div>
+
+              {/* View Switcher & Cart */}
+              <div className="flex items-center gap-3">
+                <div className="bg-slate-100 p-1 rounded-xl flex items-center border border-slate-200 text-xs font-bold">
+                  <button 
+                    onClick={() => setViewMode('buyer')} 
+                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${viewMode === 'buyer' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-600'}`}>
+                    <span>🛍️</span>
+                    <span>{t.switchBuyer}</span>
+                  </button>
+                  <button 
+                    onClick={() => setViewMode('seller')} 
+                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${viewMode === 'seller' ? 'bg-orange-600 text-white shadow-sm' : 'text-slate-600'}`}>
+                    <span>🏪</span>
+                    <span>{t.switchSeller}</span>
+                    {orders.filter(o => o.status === 'PENDING').length > 0 && (
+                      <span className="bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center ml-0.5">
+                        {orders.filter(o => o.status === 'PENDING').length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="hidden lg:inline text-xs text-slate-500">Hi, {profile.name.split(/\s+/)[0]}</span>
+                  <button onClick={handleLogout} className="border border-slate-200 hover:border-rose-300 hover:bg-rose-50 text-slate-700 hover:text-rose-700 px-3 py-2 rounded-xl text-xs font-extrabold transition" title="Log out of NammaCart">↪ Logout</button>
+                </div>
+
+                {viewMode === 'buyer' && (
+                  <button 
+                    onClick={() => setIsCartOpen(true)} 
+                    className="relative bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 p-2 rounded-xl transition flex items-center gap-2">
+                    <span className="text-lg">🛒</span>
+                    <span className="hidden md:inline font-bold text-xs">₹{cartTotal}</span>
+                    {cart.length > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-orange-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow">
+                        {cart.reduce((s, i) => s + i.qty, 0)}
+                      </span>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </nav>
+
+          {/* --- VIEW MODE: BUYER EXPERIENCE --- */}
+          {viewMode === 'buyer' && (
+            <main className="max-w-7xl mx-auto px-4 py-6 w-full flex-1">
+              
+              {/* Hyperlocal Radar Banner */}
+              <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 text-white rounded-3xl p-6 sm:p-8 mb-8 shadow-xl relative overflow-hidden">
+                <div className="relative z-10 max-w-2xl">
+                  <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold mb-3">
+                    <span className="w-2 h-2 rounded-full bg-emerald-300"></span>
+                    <span>4 sample neighbourhood stores within 1.5 km</span>
+                  </div>
+                  <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2">
+                    {t.tagline}
+                  </h1>
+                  <p className="text-orange-100 text-sm mb-6">
+                    Support local retail. Same-day 15-minute pickup or doorstep delivery, transparent prices, zero hidden fees.
+                  </p>
+
+                  {/* Universal Search & Voice Search Input */}
+                  <div className="bg-white rounded-2xl p-2 shadow-2xl flex items-center gap-2 text-slate-800">
+                    <span className="text-slate-400 pl-3 text-lg">🔍</span>
+                    <input 
+                      type="text" 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={t.searchPlaceholder}
+                      className="w-full bg-transparent outline-none text-sm font-medium text-slate-900 placeholder-slate-400"
+                    />
+
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery("")} 
+                        className="text-xs text-slate-400 hover:text-slate-600 p-1">
+                        ✕
+                      </button>
+                    )}
+
+                    {/* Microphone Voice Search Button */}
+                    <button 
+                      onClick={handleVoiceSearch}
+                      title={t.speakToSearch}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-orange-100 hover:bg-orange-200 text-orange-700'}`}>
+                      <span>🎙️</span>
+                      <span className="hidden sm:inline">{isListening ? 'Listening...' : t.speakToSearch}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Radar Visual Widget Decoration */}
+                <div className="absolute right-6 -bottom-10 opacity-20 lg:opacity-35 pointer-events-none hidden sm:block">
+                  <div className="relative w-64 h-64 flex items-center justify-center">
+                    <div className="absolute w-64 h-64 border border-white rounded-full radar-pulse"></div>
+                    <div className="absolute w-48 h-48 border border-white rounded-full"></div>
+                    <div className="absolute w-32 h-32 border border-white rounded-full"></div>
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-orange-600 font-bold shadow-lg">
+                      📍
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Category Pills & Open Now Filter */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none text-xs font-semibold">
+                  {["All", ...Array.from(new Set(products.map(product => product.category))).sort()].map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3 py-1.5 rounded-full whitespace-nowrap transition border ${selectedCategory === cat ? 'bg-orange-600 text-white border-orange-600 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:border-orange-300'}`}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-700 bg-white px-3 py-1.5 rounded-full border border-slate-200 cursor-pointer shadow-sm">
+                  <input 
+                    type="checkbox" 
+                    checked={onlyOpenShops} 
+                    onChange={(e) => setOnlyOpenShops(e.target.checked)} 
+                    className="accent-orange-600 w-4 h-4 rounded"
+                  />
+                  <span>🟢 {t.openNow}</span>
+                </label>
+              </div>
+
+              {/* Hyperlocal Shops Carousel / Cards */}
+              <div className="mb-10">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <span>🏬</span>
+                    <span>{t.allShops}</span>
+                  </h2>
+                  <span className="text-xs text-slate-500">Sorted by physical distance</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {shops.map(shop => (
+                    <div 
+                      key={shop.id} 
+                      className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <span className="bg-amber-50 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-200">
+                            {shop.badge}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${shop.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                            {shop.isOpen ? 'Open Now' : 'Closed'}
+                          </span>
+                        </div>
+                        <h3 className="font-bold text-sm text-slate-900 leading-snug mb-1">{shop.name}</h3>
+                        <p className="text-xs text-slate-500 mb-2">{shop.category}</p>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+                        <span className="font-bold text-orange-600">📍 {shop.distanceMeters}m {t.distance}</span>
+                        <span>⚡ {shop.pickupTimeMins} {t.mins}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Product Catalog Grid with Compare Feature */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Neighborhood Products ({filteredProducts.length})</h2>
+                    <p className="text-xs text-slate-500">Compare sample prices across nearby stores. Store data is for the demo.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                  {filteredProducts.map(product => {
+                    const shop = shops.find(s => s.id === product.shopId);
+                    const isLowStock = product.stock <= 5;
+                    const comparisonCount = getComparisonShops(product).length;
+
+                    return (
+                      <div 
+                        key={product.id} 
+                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition flex flex-col justify-between group">
+                        
+                        {/* Product Image & Badges */}
+                        <div className="relative h-44 bg-slate-100 overflow-hidden">
+                          <img 
+                            src={getProductVisual(product)} 
+                            alt={`Photo of ${product.title}`} 
+                            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.classList.add('product-image-fallback'); e.currentTarget.parentElement.setAttribute('data-fallback', `${getProductFallback(product)}\n${product.title}\nIllustration`); }}
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
+                          />
+                          <div className="absolute top-2 left-2 flex flex-col gap-1">
+                            <span className="bg-white/95 backdrop-blur text-slate-800 text-[11px] font-bold px-2 py-0.5 rounded-md shadow-sm">
+                              {product.unit}
+                            </span>
+                            {isLowStock && (
+                              <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm animate-pulse">
+                                Only {product.stock} left!
+                              </span>
+                            )}
+                          </div>
+                          
+                          <button type="button" onClick={() => toggleWishlist(product.id)} aria-label={wishlistIds.includes(product.id) ? 'Remove from wishlist' : 'Add to wishlist'} title={wishlistIds.includes(product.id) ? 'Remove from wishlist' : 'Add to wishlist'} className={`absolute top-2 right-2 w-9 h-9 rounded-full shadow flex items-center justify-center text-lg ${wishlistIds.includes(product.id) ? 'bg-rose-600 text-white' : 'bg-white/95 text-slate-700 hover:text-rose-600'}`}>
+                            {wishlistIds.includes(product.id) ? '♥' : '♡'}
+                          </button>
+                          <div className="absolute bottom-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur">
+                            📍 {shop?.distanceMeters}m
+                          </div>
+                        </div>
+
+                        {/* Details */}
+                        <div className="p-4 flex-1 flex flex-col justify-between">
+                          <div>
+                            <div className="text-[11px] text-orange-600 font-semibold mb-0.5">{product.category}</div>
+                            <h3 className="font-bold text-sm text-slate-900 leading-snug line-clamp-2 mb-1">{product.title}</h3>
+                            <div className="text-xs text-slate-500 flex items-center gap-1 mb-3">
+                              <span>🏪 {shop?.name}</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            {/* Price */}
+                            <div className="flex items-baseline gap-2 mb-3">
+                              <span className="text-lg font-extrabold text-slate-900">₹{product.price}</span>
+                              {product.mrp > product.price && (
+                                <span className="text-xs text-slate-400 line-through">₹{product.mrp}</span>
+                              )}
+                              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                Save ₹{product.mrp - product.price}
+                              </span>
+                            </div>
+
+                            {/* Actions: Compare + Add to Cart */}
+                            <div className="flex items-center gap-2">
+                              {comparisonCount > 1 && (
+                                <button 
+                                  onClick={() => setComparingProduct(product)} 
+                                  className="w-1/2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold py-2 px-2 rounded-xl transition flex items-center justify-center gap-1"
+                                  title="Check prices at other neighbourhood shops">
+                                  <span>⚖️ Compare</span>
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => addToCart(product, shop)}
+                                className={`${comparisonCount > 1 ? 'w-1/2' : 'w-full'} bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold py-2 px-3 rounded-xl shadow-sm transition flex items-center justify-center gap-1`}>
+                                <span>+ {t.addToCart}</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </main>
+          )}
+
+          {/* --- VIEW MODE: SELLER PORTAL & DASHBOARD --- */}
+          {viewMode === 'seller' && (
+            <main className="max-w-7xl mx-auto px-4 py-6 w-full flex-1">
+              
+              {/* Seller Header Summary */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 mb-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
+                      Verified Storefront
+                    </span>
+                    <span className="text-xs text-slate-500">ID: {activeShop.id}</span>
+                  </div>
+                  <h1 className="text-2xl font-extrabold text-slate-900">{activeShop.name}</h1>
+                  <p className="text-xs text-slate-500">📍 {activeShop.address} • Phone: {activeShop.phone}</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* AI Photo-to-Listing Action Button */}
+                  <button 
+                    onClick={() => { setIsAiModalOpen(true); triggerAiPhotoScanning('fortune_oil'); }}
+                    className="bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 text-white font-extrabold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-md shadow-orange-500/20 flex items-center gap-2 transition">
+                    <span>✨</span>
+                    <span>{t.aiListingTitle}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsAddProductOpen(true)}
+                    className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition">
+                    <span>＋</span><span>Add Product with Photo</span>
+                  </button>
+
+                  <a 
+                    href={`https://wa.me/?text=Check%20out%20my%20online%20store%20on%20NammaCart:%20nammacart.local/shop/${activeShop.id}`} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition">
+                    <span>💬</span>
+                    <span>WhatsApp Storefront</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* NEW FEATURE 7: Store Profile and Availability */}
+              <section className="bg-white rounded-3xl border border-slate-200 p-6 mb-8 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                  <div>
+                    <h2 className="text-lg font-extrabold text-slate-900">🏪 Store Profile & Availability</h2>
+                    <p className="text-xs text-slate-500 mt-1">Keep your shop details and opening hours up to date.</p>
+                  </div>
+                  <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${shopDraft.isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{shopDraft.isOpen ? '● Shop marked OPEN' : '● Shop marked CLOSED'}</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="text-xs font-bold text-slate-600">Shop name
+                    <input value={shopDraft.name} onChange={e => setShopDraft(d => ({...d, name: e.target.value}))} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-300" placeholder="Enter shop name" />
+                  </label>
+                  <label className="text-xs font-bold text-slate-600">Contact phone
+                    <input value={shopDraft.phone} onChange={e => setShopDraft(d => ({...d, phone: e.target.value}))} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-300" placeholder="Shop phone number" />
+                  </label>
+                  <label className="text-xs font-bold text-slate-600">Shop address
+                    <input value={shopDraft.address} onChange={e => setShopDraft(d => ({...d, address: e.target.value}))} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-300" placeholder="Street / area" />
+                  </label>
+                  <label className="text-xs font-bold text-slate-600">Opening hours
+                    <input value={shopDraft.openingHours} onChange={e => setShopDraft(d => ({...d, openingHours: e.target.value}))} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-300" placeholder="e.g. 9 AM – 9 PM" />
+                  </label>
+                  <label className="text-xs font-bold text-slate-600 md:col-span-2">Short shop description
+                    <textarea value={shopDraft.description} onChange={e => setShopDraft(d => ({...d, description: e.target.value}))} rows="2" className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-300" placeholder="Tell customers what makes your shop special" />
+                  </label>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={shopDraft.isOpen} onChange={e => setShopDraft(d => ({...d, isOpen: e.target.checked}))} className="w-4 h-4 accent-emerald-600" /> Shop is currently open</label>
+                  <button onClick={() => { if (!shopDraft.name.trim()) { showToast('Please enter a shop name.'); return; } setShops(prev => prev.map(shop => shop.id === activeSellerShopId ? {...shop, ...shopDraft} : shop)); showToast('Store profile saved on this browser.'); }} className="bg-orange-600 hover:bg-orange-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl">Save Store Profile</button>
+                </div>
+              </section>
+
+              {/* NEW FEATURE 8: Profit and Expense Tracker */}
+              <section className="bg-white rounded-3xl border border-slate-200 p-6 mb-8 shadow-sm">
+                <div className="mb-5">
+                  <h2 className="text-lg font-extrabold text-slate-900">💰 Profit & Expense Tracker</h2>
+                  <p className="text-xs text-slate-500 mt-1">Record shop expenses and compare them with completed demo-order revenue.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                  <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-4"><div className="text-xs font-bold text-emerald-700">Completed Order Revenue</div><div className="text-2xl font-extrabold text-emerald-800 mt-1">₹{orders.filter(o => o.shopId === activeSellerShopId && o.status === 'COMPLETED').reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0).toLocaleString('en-IN')}</div></div>
+                  <div className="rounded-2xl bg-rose-50 border border-rose-100 p-4"><div className="text-xs font-bold text-rose-700">Recorded Expenses</div><div className="text-2xl font-extrabold text-rose-800 mt-1">₹{expenses.filter(x => x.shopId === activeSellerShopId).reduce((sum, x) => sum + (Number(x.amount) || 0), 0).toLocaleString('en-IN')}</div></div>
+                  <div className="rounded-2xl bg-sky-50 border border-sky-100 p-4"><div className="text-xs font-bold text-sky-700">Revenue After Expenses</div><div className="text-2xl font-extrabold text-sky-800 mt-1">₹{(orders.filter(o => o.shopId === activeSellerShopId && o.status === 'COMPLETED').reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0) - expenses.filter(x => x.shopId === activeSellerShopId).reduce((sum, x) => sum + (Number(x.amount) || 0), 0)).toLocaleString('en-IN')}</div><div className="text-[10px] text-sky-700 mt-1">Not accounting profit; product costs may be missing.</div></div>
+                </div>
+                <form onSubmit={e => { e.preventDefault(); const amount = Number(expenseDraft.amount); if (!Number.isFinite(amount) || amount <= 0) { showToast('Enter an expense amount greater than zero.'); return; } setExpenses(prev => [{id: `EXP-${Date.now()}`, shopId: activeSellerShopId, amount, category: expenseDraft.category, note: expenseDraft.note.trim(), date: expenseDraft.date}, ...prev]); setExpenseDraft(d => ({...d, amount: '', note: ''})); showToast('Expense added.'); }} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end mb-5">
+                  <label className="text-xs font-bold text-slate-600">Amount (₹)<input type="number" min="1" step="0.01" required value={expenseDraft.amount} onChange={e => setExpenseDraft(d => ({...d, amount: e.target.value}))} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal" placeholder="500" /></label>
+                  <label className="text-xs font-bold text-slate-600">Category<select value={expenseDraft.category} onChange={e => setExpenseDraft(d => ({...d, category: e.target.value}))} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal"><option>Stock Purchase</option><option>Rent</option><option>Utilities</option><option>Packaging</option><option>Delivery</option><option>Other</option></select></label>
+                  <label className="text-xs font-bold text-slate-600">Date<input type="date" required value={expenseDraft.date} onChange={e => setExpenseDraft(d => ({...d, date: e.target.value}))} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal" /></label>
+                  <label className="text-xs font-bold text-slate-600">Note<input value={expenseDraft.note} onChange={e => setExpenseDraft(d => ({...d, note: e.target.value}))} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal" placeholder="Optional details" /></label>
+                  <button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold px-4 py-2.5 rounded-xl">+ Add Expense</button>
+                </form>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs"><thead><tr className="border-b border-slate-200 text-slate-400 uppercase"><th className="py-3 pr-3">Date</th><th className="py-3 pr-3">Category</th><th className="py-3 pr-3">Note</th><th className="py-3 text-right">Amount</th><th className="py-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100">
+                    {expenses.filter(x => x.shopId === activeSellerShopId).length === 0 ? <tr><td colSpan="5" className="py-6 text-center text-slate-400">No expenses recorded yet. Add your first shop expense above.</td></tr> : expenses.filter(x => x.shopId === activeSellerShopId).map(item => <tr key={item.id}><td className="py-3 pr-3">{item.date}</td><td className="py-3 pr-3 font-semibold">{item.category}</td><td className="py-3 pr-3 text-slate-500">{item.note || '—'}</td><td className="py-3 text-right font-bold">₹{Number(item.amount).toLocaleString('en-IN')}</td><td className="py-3 text-right"><button onClick={() => { setExpenses(prev => prev.filter(x => x.id !== item.id)); showToast('Expense removed.'); }} className="text-rose-600 hover:text-rose-800 font-bold">Delete</button></td></tr>)}
+                  </tbody></table>
+                </div>
+              </section>
+
+              {/* Analytics & AI Growth Coach Bar */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Today's Revenue</div>
+                  <div className="text-2xl font-extrabold text-slate-900 mt-1">₹{orders.filter(o => o.shopId === activeSellerShopId && o.status === 'COMPLETED').reduce((sum, o) => sum + (o.totalAmount || 0), 0).toLocaleString('en-IN')}</div>
+                  <div className="text-[11px] text-slate-500 font-semibold mt-1">Completed demo orders</div>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Total Orders</div>
+                  <div className="text-2xl font-extrabold text-slate-900 mt-1">{orders.filter(o => o.shopId === activeSellerShopId).length}</div>
+                  <div className="text-[11px] text-slate-500 mt-1">Orders in this demo</div>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Low Stock Alerts</div>
+                  <div className="text-2xl font-extrabold text-amber-600 mt-1">
+                    {products.filter(p => p.shopId === activeSellerShopId && p.stock <= 5).length} Items
+                  </div>
+                  <div className="text-[11px] text-red-500 font-semibold mt-1">Restock required</div>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Repeat Customers</div>
+                  <div className="text-2xl font-extrabold text-purple-600 mt-1">74%</div>
+                  <div className="text-[11px] text-purple-600 font-semibold mt-1">Strong local loyalty</div>
+                </div>
+              </div>
+
+              {/* AI Seller Growth Coach Widget */}
+              <div className="bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-3xl p-6 mb-8 shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">🤖</span>
+                  <h2 className="font-extrabold text-base tracking-wide text-purple-200">{t.growthCoach}</h2>
+                  <span className="bg-purple-500/30 text-purple-200 text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto">
+                    Demo insights
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div className="bg-white/10 rounded-2xl p-4 backdrop-blur border border-white/10">
+                    <div className="text-xs font-bold text-amber-300 mb-1">⚡ Weekend Kirana Demand Spike</div>
+                    <p className="text-xs text-purple-100">
+                      "Atta & Refined Cooking Oil demand surges 35% on Saturday morning. Keep at least 25 packets stocked to avoid missed sales."
+                    </p>
+                  </div>
+                  <div className="bg-white/10 rounded-2xl p-4 backdrop-blur border border-white/10">
+                    <div className="text-xs font-bold text-emerald-300 mb-1">💡 Smart Bundle Opportunity</div>
+                    <p className="text-xs text-purple-100">
+                      "Shoppers buying Tata Tea Gold often buy Parle-G or Iyengar Rusk. Creating a combo offer will increase your basket size by 22%."
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Orders Queue */}
+              <div className="mb-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <span>📦</span>
+                    <span>Live Customer Orders ({orders.length})</span>
+                  </h2>
+                  <span className="text-xs text-slate-500 font-semibold">● Demo order queue</span>
+                </div>
+
+                {orders.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-8 text-center text-slate-400 border border-slate-200">
+                    No pending orders right now. Switch to Buyer mode and place one!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {orders.map(order => (
+                      <div 
+                        key={order.id} 
+                        className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <span className="font-extrabold text-sm text-slate-900">{order.id}</span>
+                            <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                              order.status === 'PENDING' ? 'bg-amber-100 text-amber-800 animate-pulse' :
+                              order.status === 'ACCEPTED' ? 'bg-blue-100 text-blue-800' :
+                              order.status === 'READY' ? 'bg-purple-100 text-purple-800' :
+                              'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {order.status}
+                            </span>
+                          </div>
+
+                          <div className="text-xs text-slate-600 mb-3">
+                            <div className="font-semibold text-slate-800">👤 {order.buyerName}</div>
+                            <div>📞 {order.buyerPhone}</div>
+                            {order.deliveryAddress && <div className="mt-1">📦 {order.deliveryAddress}</div>}
+                            {order.customerLocation?.mapUrl && <a href={order.customerLocation.mapUrl} target="_blank" rel="noreferrer" className="inline-flex mt-1 text-sky-700 underline font-bold">📍 Open buyer location map</a>}
+                            {order.paymentStatus === 'DEMO_CONFIRMED_NOT_REAL' && <div className="text-[10px] font-bold text-amber-700 mt-1">Demo payment confirmation only</div>}
+                            <div className="text-[11px] text-slate-400 mt-0.5">Placed: {order.createdAt}</div>
+                          </div>
+
+                          <div className="bg-slate-50 rounded-xl p-3 mb-4 text-xs">
+                            <div className="font-bold text-slate-500 mb-1 text-[11px] uppercase">Items Ordered</div>
+                            {order.items.map((it, idx) => (
+                              <div key={idx} className="flex justify-between py-0.5">
+                                <span>{it.title} × {it.qty}</span>
+                                <span className="font-bold">₹{it.price * it.qty}</span>
+                              </div>
+                            ))}
+                            <div className="border-t border-slate-200 mt-2 pt-1 flex justify-between font-extrabold text-slate-900">
+                              <span>Total ({order.paymentMode})</span>
+                              <span>₹{order.totalAmount}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Order Status Action Buttons */}
+                        <div className="flex flex-col gap-2">
+                          {order.status === 'PENDING' && (
+                            <button 
+                              onClick={() => handleSellerUpdateStatus(order.id, 'ACCEPTED')}
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm">
+                              ✓ {t.acceptOrder}
+                            </button>
+                          )}
+                          {order.status === 'ACCEPTED' && (
+                            <button 
+                              onClick={() => handleSellerUpdateStatus(order.id, 'READY')}
+                              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm">
+                              🛍️ {t.orderReady}
+                            </button>
+                          )}
+                          {order.status === 'READY' && (
+                            <button 
+                              onClick={() => handleSellerUpdateStatus(order.id, 'COMPLETED')}
+                              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm">
+                              🏁 {t.completeOrder}
+                            </button>
+                          )}
+                          
+                          <a 
+                            href={`https://wa.me/${order.buyerPhone.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(order.buyerName)},%20your%20order%20${order.id}%20at%20${encodeURIComponent(activeShop.name)}%20is%20${order.status}!`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-[11px] py-1.5 rounded-xl text-center transition flex items-center justify-center gap-1">
+                            <span>💬 {t.whatsappAlert}</span>
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Store Catalog & Inventory Table */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Your Store Inventory ({products.filter(p => p.shopId === activeSellerShopId).length})</h2>
+                    <p className="text-xs text-slate-500">One-tap stock adjustment with auto low-stock alerts</p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-400 uppercase font-semibold">
+                        <th className="pb-3">Product</th>
+                        <th className="pb-3">Category</th>
+                        <th className="pb-3">Price / MRP</th>
+                        <th className="pb-3 text-center">Live Stock</th>
+                        <th className="pb-3 text-right">Quick Adjust</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {products.filter(p => p.shopId === activeSellerShopId).map(prod => (
+                        <tr key={prod.id} className="hover:bg-slate-50 transition">
+                          <td className="py-3 font-semibold text-slate-900 flex items-center gap-3">
+                            <img src={getProductVisual(prod)} alt={`Photo of ${prod.title}`} onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.setAttribute('data-fallback', getProductFallback(prod)); e.currentTarget.parentElement.classList.add('product-image-fallback'); }} className="w-10 h-10 rounded-lg object-cover border" />
+                            <div>
+                              <div>{prod.title}</div>
+                              <div className="text-[10px] text-slate-400">{prod.unit}</div>
+                            </div>
+                          </td>
+                          <td className="py-3 text-slate-600">{prod.category}</td>
+                          <td className="py-3 font-bold text-slate-900">₹{prod.price} <span className="text-[10px] text-slate-400 line-through">₹{prod.mrp}</span></td>
+                          <td className="py-3 text-center">
+                            <span className={`px-2 py-1 rounded-full font-bold text-[11px] ${prod.stock <= 5 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                              {prod.stock} units
+                            </span>
+                          </td>
+                          <td className="py-3 text-right">
+                            <div className="inline-flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 border border-slate-200 font-bold">
+                              <button 
+                                onClick={() => handleUpdateStock(prod.id, -1)}
+                                className="w-6 h-6 rounded bg-white hover:bg-slate-200 flex items-center justify-center text-slate-700 shadow-xs">
+                                -
+                              </button>
+                              <span className="w-6 text-center text-xs">{prod.stock}</span>
+                              <button 
+                                onClick={() => handleUpdateStock(prod.id, 1)}
+                                className="w-6 h-6 rounded bg-white hover:bg-slate-200 flex items-center justify-center text-slate-700 shadow-xs">
+                                +
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </main>
+          )}
+
+          {/* --- MANUAL SELLER PRODUCT LISTING MODAL --- */}
+          {isAddProductOpen && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <form onSubmit={(e) => { e.preventDefault(); handlePublishManualProduct(); }} className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl relative border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
+                <button type="button" onClick={() => setIsAddProductOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold" aria-label="Close add product form">✕</button>
+                <div>
+                  <h2 className="font-extrabold text-xl text-slate-900">Add a product to your storefront</h2>
+                  <p className="text-xs text-slate-500 mt-1">Upload a real product photo. This demo saves your listing in this browser only.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2"><label className="block text-xs font-bold mb-1" htmlFor="new-product-title">Product name</label><input id="new-product-title" required minLength="2" maxLength="90" value={newProductDraft.title} onChange={e => setNewProductDraft({...newProductDraft, title:e.target.value})} className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm" placeholder="e.g. Fresh Rajma 500 g" /></div>
+                  <div><label className="block text-xs font-bold mb-1" htmlFor="new-product-category">Category</label><select id="new-product-category" value={newProductDraft.category} onChange={e => setNewProductDraft({...newProductDraft, category:e.target.value})} className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm bg-white">
+                    <option>Groceries & Daily Essentials</option><option>Rice, Pulses & Grains</option><option>Fresh Fruits & Vegetables</option><option>Dairy & Milk</option><option>Bakery & Cakes</option><option>Bakery & Bread</option><option>Bakery & Snacks</option><option>Electronics & Accessories</option><option>Handicrafts & Gifts</option><option>Home & Living</option><option>Home & Kitchen</option><option>Oils & Ghee</option><option>Spices & Condiments</option><option>Beverages & Tea</option>
+                  </select></div>
+                  <div><label className="block text-xs font-bold mb-1" htmlFor="new-product-unit">Unit / size</label><input id="new-product-unit" value={newProductDraft.unit} onChange={e => setNewProductDraft({...newProductDraft, unit:e.target.value})} className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm" placeholder="500 g, 1 pc" /></div>
+                  <div><label className="block text-xs font-bold mb-1" htmlFor="new-product-price">Selling price (₹)</label><input id="new-product-price" required type="number" min="0.01" step="0.01" value={newProductDraft.price} onChange={e => setNewProductDraft({...newProductDraft, price:e.target.value})} className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm" placeholder="99" /></div>
+                  <div><label className="block text-xs font-bold mb-1" htmlFor="new-product-mrp">MRP (₹)</label><input id="new-product-mrp" required type="number" min="0.01" step="0.01" value={newProductDraft.mrp} onChange={e => setNewProductDraft({...newProductDraft, mrp:e.target.value})} className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm" placeholder="120" /></div>
+                  <div><label className="block text-xs font-bold mb-1" htmlFor="new-product-stock">Available stock</label><input id="new-product-stock" required type="number" min="0" step="1" value={newProductDraft.stock} onChange={e => setNewProductDraft({...newProductDraft, stock:e.target.value})} className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm" /></div>
+                  <div><label className="block text-xs font-bold mb-1" htmlFor="new-product-photo">Product photo</label><input id="new-product-photo" required type="file" accept="image/*" onChange={handleProductPhotoUpload} className="w-full text-xs border border-slate-300 rounded-xl p-2" /><p className="text-[10px] text-slate-400 mt-1">Image will be resized in your browser before saving.</p></div>
+                  <div><label className="block text-xs font-bold mb-1" htmlFor="new-product-description">Description (optional)</label><textarea id="new-product-description" rows="2" maxLength="240" value={newProductDraft.description} onChange={e => setNewProductDraft({...newProductDraft, description:e.target.value})} className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm" placeholder="Short product details" /></div>
+                </div>
+                {newProductImage && <div className="flex items-center gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3"><img src={newProductImage} alt="Selected product preview" className="w-16 h-16 object-cover rounded-lg" /><div className="text-xs font-semibold text-emerald-700">Photo ready to publish</div><button type="button" onClick={() => setNewProductImage('')} className="ml-auto text-xs text-red-600 font-bold">Remove</button></div>}
+                <div className="flex gap-2 pt-2"><button type="button" onClick={() => setIsAddProductOpen(false)} className="flex-1 border border-slate-300 text-slate-700 font-bold text-sm py-3 rounded-xl">Cancel</button><button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm py-3 rounded-xl">Publish Product</button></div>
+              </form>
+            </div>
+          )}
+
+          {/* --- AI PHOTO-TO-LISTING MODAL (SELLER) --- */}
+          {isAiModalOpen && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl relative border border-slate-200 max-h-[90vh] overflow-y-auto">
+                <button 
+                  onClick={() => setIsAiModalOpen(false)} 
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold">
+                  ✕
+                </button>
+
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-lg">
+                    ✨
+                  </span>
+                  <div>
+                    <h2 className="font-extrabold text-lg text-slate-900">{t.aiListingTitle}</h2>
+                    <p className="text-xs text-slate-500">{t.aiListingDesc}</p>
+                  </div>
+                </div>
+
+                {/* Sample Photo selector for quick live demo */}
+                <div className="my-4">
+                  <div className="text-xs font-bold text-slate-600 mb-2">Choose a sample product photo to simulate AI listing (no live AI service is connected):</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button 
+                      onClick={() => triggerAiPhotoScanning('fortune_oil')}
+                      className={`p-2 rounded-xl border text-left transition ${aiSelectedPreset === 'fortune_oil' ? 'border-orange-600 bg-orange-50' : 'border-slate-200 hover:border-orange-300'}`}>
+                      <div className="text-xl mb-1">🌻</div>
+                      <div className="font-bold text-[11px] text-slate-800">Fortune Sunflower Oil</div>
+                    </button>
+                    <button 
+                      onClick={() => triggerAiPhotoScanning('tata_salt')}
+                      className={`p-2 rounded-xl border text-left transition ${aiSelectedPreset === 'tata_salt' ? 'border-orange-600 bg-orange-50' : 'border-slate-200 hover:border-orange-300'}`}>
+                      <div className="text-xl mb-1">🧂</div>
+                      <div className="font-bold text-[11px] text-slate-800">Tata Salt 1kg</div>
+                    </button>
+                    <button 
+                      onClick={() => triggerAiPhotoScanning('bhujia')}
+                      className={`p-2 rounded-xl border text-left transition ${aiSelectedPreset === 'bhujia' ? 'border-orange-600 bg-orange-50' : 'border-slate-200 hover:border-orange-300'}`}>
+                      <div className="text-xl mb-1">🥨</div>
+                      <div className="font-bold text-[11px] text-slate-800">Haldiram Bhujia</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* AI Scanner / Camera Area */}
+                <div className="relative h-48 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center my-4 border border-slate-800">
+                  {aiDraft ? (
+                    <img src={aiDraft.image} alt={aiDraft.title} className="w-full h-full object-cover opacity-80" />
+                  ) : (
+                    <div className="text-center text-slate-400">
+                      <div className="text-3xl mb-1">📸</div>
+                      <div className="text-xs font-semibold">Simulating Smartphone Camera Lens</div>
+                    </div>
+                  )}
+
+                  {aiScanning && (
+                    <div className="absolute inset-0 bg-orange-500/10 flex flex-col items-center justify-center">
+                      <div className="absolute w-full h-1 bg-orange-400 shadow-[0_0_15px_#f97316] laser-line"></div>
+                      <div className="bg-slate-900/90 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+                        <span className="animate-spin">⏳</span>
+                        <span>{t.aiDrafting}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Draft Result */}
+                {aiDraft && !aiScanning && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                        ✓ {aiDraft.confidence}
+                      </span>
+                      <span className="text-slate-400">Ready to Publish</span>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Product Title</label>
+                      <input 
+                        type="text" 
+                        value={aiDraft.title} 
+                        onChange={(e) => setAiDraft({...aiDraft, title: e.target.value})}
+                        className="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg p-2 outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Category</label>
+                        <input 
+                          type="text" 
+                          value={aiDraft.category} 
+                          onChange={(e) => setAiDraft({...aiDraft, category: e.target.value})}
+                          className="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg p-2 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Selling Price (₹)</label>
+                        <input 
+                          type="number" 
+                          value={aiDraft.price} 
+                          onChange={(e) => setAiDraft({...aiDraft, price: Number(e.target.value)})}
+                          className="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg p-2 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Initial Stock</label>
+                        <input 
+                          type="number" 
+                          value={aiDraft.stock} 
+                          onChange={(e) => setAiDraft({...aiDraft, stock: Number(e.target.value)})}
+                          className="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg p-2 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">AI Description</label>
+                      <p className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg p-2">
+                        {aiDraft.description}
+                      </p>
+                    </div>
+
+                    <button 
+                      onClick={handlePublishAiProduct}
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs py-3 rounded-xl transition shadow-md flex items-center justify-center gap-2">
+                      <span>🚀</span>
+                      <span>{t.publishProduct}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* --- COMPARE NEARBY SHOPS MODAL --- */}
+          {comparingProduct && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative border border-slate-200 max-h-[90vh] overflow-y-auto">
+                <button 
+                  onClick={() => setComparingProduct(null)} 
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold">
+                  ✕
+                </button>
+
+                <div className="flex items-center gap-3 mb-4">
+                  <img src={getProductVisual(comparingProduct)} alt={`Photo of ${comparingProduct.title}`} className="w-14 h-14 rounded-xl object-cover border" />
+                  <div>
+                    <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                      Hyperlocal Price Radar
+                    </span>
+                    <h2 className="font-extrabold text-base text-slate-900">{comparingProduct.title}</h2>
+                    <p className="text-xs text-slate-500">Live prices and delivery speeds across neighbouring stores</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {getComparisonShops(comparingProduct).map((item, idx) => {
+                    const isCheapest = idx === 0;
+                    return (
+                      <div 
+                        key={item.product.id}
+                        className={`p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isCheapest ? 'border-emerald-500 bg-emerald-50/50 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                        
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-sm text-slate-900">{item.shop.name}</span>
+                            {isCheapest && (
+                              <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                Lowest Price
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-slate-500 flex items-center gap-3">
+                            <span>📍 {item.shop.distanceMeters}m away</span>
+                            <span>⚡ {item.shop.pickupTimeMins} mins pickup</span>
+                            <span>⭐ {item.shop.rating}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-4">
+                          <div className="text-right">
+                            <div className="text-lg font-extrabold text-slate-900">₹{item.product.price}</div>
+                            <div className="text-[10px] text-slate-400 line-through">MRP ₹{item.product.mrp}</div>
+                          </div>
+
+                          <button 
+                            onClick={() => {
+                              addToCart(item.product, item.shop);
+                              setComparingProduct(null);
+                            }}
+                            className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm">
+                            Select & Add
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- BUYER CART DRAWER --- */}
+          {isCartOpen && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex justify-end">
+              <div className="bg-white w-full max-w-md h-full p-6 shadow-2xl flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🛒</span>
+                      <h2 className="font-extrabold text-base text-slate-900">{t.cartTitle}</h2>
+                    </div>
+                    <button 
+                      onClick={() => setIsCartOpen(false)}
+                      className="text-slate-400 hover:text-slate-600 text-lg font-bold">
+                      ✕
+                    </button>
+                  </div>
+
+                  {cart.length === 0 ? (
+                    <div className="py-20 text-center text-slate-400">
+                      <div className="text-4xl mb-2">🛍️</div>
+                      <p className="text-sm font-semibold">Your cart is empty.</p>
+                      <p className="text-xs">Browse local products and add items!</p>
+                    </div>
+                  ) : (
+                    <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                      {cart.map(item => (
+                        <div key={item.product.id} className="flex items-center justify-between gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-xs text-slate-900 line-clamp-1">{item.product.title}</h4>
+                            <p className="text-[11px] text-slate-500">🏪 {item.shop.name}</p>
+                            <p className="font-extrabold text-xs text-orange-600 mt-1">₹{item.product.price * item.qty}</p>
+                          </div>
+
+                          <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-slate-200 font-bold text-xs">
+                            <button onClick={() => updateCartQty(item.product.id, -1)} className="w-6 h-6 hover:bg-slate-100 rounded">-</button>
+                            <span className="w-5 text-center">{item.qty}</span>
+                            <button onClick={() => updateCartQty(item.product.id, 1)} className="w-6 h-6 hover:bg-slate-100 rounded">+</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {cart.length > 0 && (
+                  <div className="pt-4 border-t border-slate-200">
+                    <div className="flex justify-between text-sm font-extrabold text-slate-900 mb-4">
+                      <span>Total to Pay:</span>
+                      <span className="text-orange-600 text-lg">₹{cartTotal}</span>
+                    </div>
+
+                    <button 
+                      onClick={() => setIsCheckoutModalOpen(true)}
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm py-3 rounded-2xl shadow-lg transition flex items-center justify-center gap-2">
+                      <span>⚡</span>
+                      <span>{t.checkout}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* --- MOCK UPI CHECKOUT MODAL --- */}
+          {isCheckoutModalOpen && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative border border-slate-200">
+                <button 
+                  onClick={() => setIsCheckoutModalOpen(false)} 
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold">
+                  ✕
+                </button>
+
+                <div className="text-center mb-4">
+                  <div className="inline-block p-2 bg-orange-50 text-orange-600 rounded-2xl mb-1">
+                    <span className="text-2xl">📱</span>
+                  </div>
+                  <h3 className="font-extrabold text-lg text-slate-900">Instant UPI Payment</h3>
+                  <p className="text-xs text-slate-500">Demo checkout only. No real QR payment is processed. Confirming below creates a demo order and opens WhatsApp.</p>
+                </div>
+
+                {/* Delivery Option Toggle */}
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-4 text-xs font-bold">
+                  <button 
+                    onClick={() => setDeliveryOption('pickup')}
+                    className={`py-2 rounded-lg transition ${deliveryOption === 'pickup' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-600'}`}>
+                    🏃 15-Min Pickup
+                  </button>
+                  <button 
+                    onClick={() => setDeliveryOption('delivery')}
+                    className={`py-2 rounded-lg transition ${deliveryOption === 'delivery' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-600'}`}>
+                    🛵 Local Delivery
+                  </button>
+                </div>
+
+                {deliveryOption === 'delivery' && (
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 mb-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h4 className="font-extrabold text-sm text-sky-900">📍 Delivery Location</h4>
+                        <p className="text-xs text-sky-800 mt-1">Allow location access to attach your latest map location to the seller's WhatsApp order message.</p>
+                      </div>
+                      {!locationTracking ? (
+                        <button type="button" onClick={startLiveLocation} className="shrink-0 rounded-xl bg-sky-700 hover:bg-sky-800 text-white px-3 py-2 text-xs font-bold">Share location</button>
+                      ) : (
+                        <button type="button" onClick={stopLiveLocation} className="shrink-0 rounded-xl bg-white border border-sky-300 text-sky-800 px-3 py-2 text-xs font-bold">Stop</button>
+                      )}
+                    </div>
+                    {liveLocation && <div className="mt-3 text-xs text-sky-900"><p className="font-bold">{locationTracking ? 'Location updating' : 'Last location saved'} · accuracy about {liveLocation.accuracy} m</p><p>Last update: {liveLocation.updatedAt}</p><a className="inline-block mt-1 underline font-bold" href={`https://www.google.com/maps?q=${liveLocation.latitude},${liveLocation.longitude}`} target="_blank" rel="noreferrer">Preview location in Google Maps</a></div>}
+                    {locationError && <p role="alert" className="text-xs text-rose-700 mt-2">{locationError}</p>}
+                    <p className="text-[10px] text-sky-700 mt-2">Demo limitation: live coordinates update in this browser; only the latest location is attached to WhatsApp. Continuous tracking visible to the seller requires a backend/realtime service.</p>
+                  </div>
+                )}
+
+                {/* Simulated UPI QR Code */}
+                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center mb-4">
+                  <div className="w-36 h-36 bg-white p-2 rounded-xl shadow-inner flex items-center justify-center border" aria-label="Decorative demo QR illustration">
+                    {/* Decorative illustration only; not a scannable payment QR code */}
+                    <svg className="w-full h-full text-slate-900" viewBox="0 0 100 100" fill="currentColor">
+                      <path d="M10 10h30v30H10zm6 6v18h18V16zm44-6h30v30H60zm6 6v18h18V16zM10 60h30v30H10zm6 6v18h18V66zm50-6h10v10H66zm14 0h10v10H80zm-14 14h10v16H66zm14 10h10v6H80zm-4-4h4v4h-4zm0-16h4v4h-4zm-20 4h10v10H56zm-10 0h6v6h-6zm0 10h6v6h-6zm10 0h6v6h-6z" />
+                    </svg>
+                  </div>
+                  <div className="font-extrabold text-base text-slate-900 mt-3">₹{cartTotal}</div>
+                  <div className="text-[11px] text-slate-400">DEMO ONLY — no real payment is processed</div>
+                </div>
+
+                {/* 1-Click Payment Confirmation */}
+                <button 
+                  onClick={handleExecuteUpiOrder}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm py-3 rounded-2xl transition shadow-lg flex items-center justify-center gap-2">
+                  <span>✓</span>
+                  <span>Confirm Demo Payment & Place Order (₹{cartTotal})</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* --- FLOATING TOAST NOTIFICATION --- */}
+          {toastMessage && (
+            <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-800 animate-bounce">
+              <span>🔔</span>
+              <span>{toastMessage}</span>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    // Render the React application
+    ReactDOM.createRoot(document.getElementById('root')).render(<BazaarApp />);
+  </script>
+</body>
+</html>
